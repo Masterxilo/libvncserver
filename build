@@ -1,8 +1,0 @@
-#!/bin/bash
-. ./bash_lib
-
-echo "building..."
-
-# magic here...
-
-echo "built."

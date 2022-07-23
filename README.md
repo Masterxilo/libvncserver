@@ -9,5 +9,5 @@ Mainly forked to add my own notes and scripts.
 ## How to
 
 ```bash
-./build
+./run
 ```

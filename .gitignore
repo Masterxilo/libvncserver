@@ -56,3 +56,6 @@ CMakeCache.txt
 .ccls-cache
 .log
 compile_commands.json
+
+
+_dependencies_where_installed
