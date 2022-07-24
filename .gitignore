@@ -60,3 +60,4 @@ compile_commands.json
 
 _dependencies_where_installed
 ./simple
+./libvncserver.so.1

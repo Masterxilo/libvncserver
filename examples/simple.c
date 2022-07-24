@@ -9,10 +9,12 @@ int main(int argc,char** argv)
 
   rfbInitServer(server);
   
-  long usec = 1000;
+  long usec = 1;
+
+rfbRunEventLoop(server,-1,TRUE);//FALSE);
 
   while(rfbIsActive(server)) {
-    rfbProcessEvents(server, usec);
+    //rfbProcessEvents(server, usec);
       
     for (int y = 0; y < 300; y++) 
       for (int x = 0; x < 400; x++)

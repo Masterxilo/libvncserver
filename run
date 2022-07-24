@@ -8,7 +8,16 @@ cd ./build/examples
 echo "Will run tcp:vnc protocol server/screen on TCP port 5900 and tcp:http protocol server at 5800 hosting novnc websockify webbrowser js/client"
 echo "vnc://localhost:5900"
 echo "http://localhost:5800"
-./example
+
+# override to ensure the local most up to date copy of the library is used
+#export LD_LIBRARY_PATH="$(realpath ..)"
+#ldd ./simple  | grep --fixed-strings "$(realpath ..)/libvncserver.so.1"
+#exit 0
+
+#./example
+./simple
+
+
 #./simple
 
 # ./build/client_examples/SDLvncviewer &
