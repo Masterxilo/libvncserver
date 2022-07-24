@@ -338,7 +338,8 @@ int main(int argc,char** argv)
     int i;
     for(i=0;rfbIsActive(rfbScreen);i++) {
       fprintf(stderr,"%d\r",i);
-      rfbProcessEvents(rfbScreen,100000);
+      long usec = 1000; // 100000
+      rfbProcessEvents(rfbScreen,usec);
 
       render();
     }

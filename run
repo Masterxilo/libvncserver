@@ -8,5 +8,8 @@ cd ./build/examples
 echo "Will run tcp:vnc protocol server/screen on TCP port 5900 and tcp:http protocol server at 5800 hosting novnc websockify webbrowser js/client"
 echo "vnc://localhost:5900"
 echo "http://localhost:5800"
-#./example
-./simple
+./example
+#./simple
+
+# ./build/client_examples/SDLvncviewer &
+# ./build/client_examples/SDLvncviewer -encodings raw -compress 0 &

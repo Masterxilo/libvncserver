@@ -48,4 +48,22 @@ if ! test -d "./build/webclients" ; then
     ln -s "$(realpath ./webclients)" "./build/webclients"
 fi
 
+# copy rfb header files over, so that there is not just rfbconfig.h there
+cp ./rfb/* ./build/rfb
+
+# build just simple.c :
+#  -l./build/libvncserver
+# note: https://stackoverflow.com/a/12748882/524504
+# > Recent versions of GCC require that you put the object files and libraries in the order that they depend on each other
+# needs that 
+#   -L./build -lvncserver
+# appears last!
+gcc -I./build ./examples/simple.c -o simple -L./build -lvncserver
+
+ldd ./simple
+#       libvncserver.so.1 => /lib/x86_64-linux-gnu/libvncserver.so.1 (0x00007f282d5ee000)
+
+# maybe we have to explicitly do the following to update the shared library version that will be used:
+#sudo cp ./build/libvncserver.so.1 /lib/x86_64-linux-gnu/libvncserver.so.1
+
 echo "built."

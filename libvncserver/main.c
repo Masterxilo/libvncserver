@@ -917,6 +917,7 @@ rfbScreenInfoPtr rfbGetScreen(int* argc,char** argv,
  int width,int height,int bitsPerSample,int samplesPerPixel,
  int bytesPerPixel)
 {
+   fprintf(stderr, "rfbGetScreen called 2!\n");
    rfbScreenInfoPtr screen=calloc(sizeof(rfbScreenInfo),1);
    if (!screen)
        return NULL;

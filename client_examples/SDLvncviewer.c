@@ -66,6 +66,8 @@ static rfbBool resize(rfbClient* client) {
 	client->format.redMax=sdl->format->Rmask>>client->format.redShift;
 	client->format.greenMax=sdl->format->Gmask>>client->format.greenShift;
 	client->format.blueMax=sdl->format->Bmask>>client->format.blueShift;
+
+
 	SetFormatAndEncodings(client);
 
 	/* create or resize the window */
@@ -87,7 +89,9 @@ static rfbBool resize(rfbClient* client) {
 	    sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, 0);
 	    if(!sdlRenderer)
 		rfbClientErr("resize: error creating renderer: %s\n", SDL_GetError());
-	    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");  /* make the scaled rendering look smoother. */
+
+		// Paul: omitted, don't linearly interpolate pixel graphics!
+	    //SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");  /* make the scaled rendering look smoother. */
 	}
 	SDL_RenderSetLogicalSize(sdlRenderer, width, height);  /* this is a departure from the SDL1.2-based version, but more in the sense of a VNC viewer in keeeping aspect ratio */
 
