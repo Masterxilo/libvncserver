@@ -36,6 +36,9 @@
 #include <rfb/rfb.h>
 #include <rfb/keysym.h>
 
+// loop to be able to render!
+#define USE_OWN_LOOP
+
 static const int bpp=4;
 static int maxx=800, maxy=600;
 /* TODO: odd maxx doesn't work (vncviewer bug) */
@@ -287,11 +290,24 @@ void intHandler(int dummy) {
     maintain_connection = 0;
 }
 
+rfbScreenInfoPtr rfbScreen;
+int ii = 0;
+void render() {
+  char text[100];
+  snprintf(text, sizeof(text), "ii = %d", ii++);
+
+
+  initBuffer((unsigned char*)rfbScreen->frameBuffer);
+  rfbDrawString(rfbScreen,&radonFont,20,100,text,0xffffff);
+
+      rfbMarkRectAsModified(rfbScreen,0,0,maxx, maxy);
+}
+
 /* Initialization */
 
 int main(int argc,char** argv)
 {
-  rfbScreenInfoPtr rfbScreen = rfbGetScreen(&argc,argv,maxx,maxy,8,3,bpp);
+  rfbScreen = rfbGetScreen(&argc,argv,maxx,maxy,8,3,bpp);
   if(!rfbScreen)
     return 1;
   rfbScreen->desktopName = "LibVNCServer Example";
@@ -323,6 +339,8 @@ int main(int argc,char** argv)
     for(i=0;rfbIsActive(rfbScreen);i++) {
       fprintf(stderr,"%d\r",i);
       rfbProcessEvents(rfbScreen,100000);
+
+      render();
     }
   }
 #else
