@@ -14,11 +14,9 @@ echo "http://localhost:5800"
 #ldd ./simple  | grep --fixed-strings "$(realpath ..)/libvncserver.so.1"
 #exit 0
 
-#./example
-./simple
-
-
+./example
 #./simple
 
+# to run an sdl based simple CLIENT
 # ./build/client_examples/SDLvncviewer &
 # ./build/client_examples/SDLvncviewer -encodings raw -compress 0 &
