@@ -1,3 +1,4 @@
+// MODIFICATIONS BY PAUL 2022-08-13: disable SDL_TEXTINPUT, just send raw keys for ascii letters as well
 /**
  * @example SDLvncviewer.c
  * Once built, you can run it via `SDLvncviewer <remote-host>`.
@@ -181,7 +182,7 @@ static rfbKeySym SDL_key2rfbKeySym(SDL_KeyboardEvent* e) {
 	default: break;
 	}
 	/* SDL_TEXTINPUT does not generate characters if ctrl is down, so handle those here */
-        if (k == 0 && sym > 0x0 && sym < 0x100 && e->keysym.mod & KMOD_CTRL)
+        if (k == 0 && sym > 0x0 && sym < 0x100) // && e->keysym.mod & KMOD_CTRL)
                k = sym;
 
 	return k;
@@ -393,20 +394,26 @@ static rfbBool handleSDLEvent(rfbClient *cl, SDL_Event *e)
 	case SDL_KEYDOWN:
 		if (viewOnly)
 			break;
+
 		SendKeyEvent(cl, SDL_key2rfbKeySym(&e->key),
 			e->type == SDL_KEYDOWN ? TRUE : FALSE);
+
 		if (e->key.keysym.sym == SDLK_RALT)
 			rightAltKeyDown = e->type == SDL_KEYDOWN;
 		if (e->key.keysym.sym == SDLK_LALT)
 			leftAltKeyDown = e->type == SDL_KEYDOWN;
 		break;
-	case SDL_TEXTINPUT:
+
+	// disable text input, otherwise for the letter keys like 'x' it will always send x 1 , x 0 (x press then release) immediately after each other
+	// so they cannot have a pressed state!
+	// don't use "textinput"!
+	/*case SDL_TEXTINPUT:
                 if (viewOnly)
 			break;
 		rfbKeySym sym = utf8char2rfbKeySym(e->text.text);
 		SendKeyEvent(cl, sym, TRUE);
 		SendKeyEvent(cl, sym, FALSE);
-                break;
+                break;*/
 	case SDL_QUIT:
                 if(listenLoop)
 		  {
@@ -489,6 +496,7 @@ int main(int argc,char** argv) {
 	argc = j;
 
 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_NOPARACHUTE);
+	SDL_StopTextInput();
 	atexit(SDL_Quit);
 	signal(SIGINT, exit);
 

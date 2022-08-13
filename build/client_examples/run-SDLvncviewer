@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+which SDLvncviewer || something1-exec1 install-SDLvncviewer
+
+echo "Note: Default vnc Port is 5900"
+SDLvncviewer "$@"

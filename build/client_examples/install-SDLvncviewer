@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+something1 SDLvncviewer | sudo tee /bin/SDLvncviewer &> /dev/null
+sudo chmod +x /bin/SDLvncviewer
+ls -l /bin/SDLvncviewer
+which SDLvncviewer
