@@ -65,9 +65,14 @@ gcc -I./build ./examples/simple.c -o simple -L./build -lvncserver
 echo "ldd ./simple before copy .so:"
 ldd ./simple
 #       libvncserver.so.1 => /lib/x86_64-linux-gnu/libvncserver.so.1 (0x00007f282d5ee000)
+md5sum /lib/x86_64-linux-gnu/libvncserver.so.1
 
 # maybe we have to explicitly do the following to update the shared library version that will be used:
-#sudo cp ./build/libvncserver.so.1 /lib/x86_64-linux-gnu/libvncserver.so.1
+sudo cp ./build/libvncserver.so.1 /lib/x86_64-linux-gnu/libvncserver.so.1
+
+echo "ldd ./simple after copy .so:"
+ldd ./simple
+md5sum /lib/x86_64-linux-gnu/libvncserver.so.1
 
 # or, it seems if it is found in the current folder (no that does not work) or any above it will override?
 # why does
