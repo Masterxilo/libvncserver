@@ -492,7 +492,7 @@ typedef struct _rfbClientRec {
          * using LibVNCServer to provide services: */
 
         RFB_INITIALISATION_SHARED, /**< sending initialisation messages with implicit shared-flag already true */
-        RFB_SHUTDOWN            /**< shutting down */
+        RFB_SHUTDOWN            /**< Client is shutting down */
     } state;
 
     rfbBool reverseConnection;

@@ -249,7 +249,11 @@ hexdump:
 rfbBool
 WriteToRFBServer(rfbClient* client, const char *buf, unsigned int n)
 {
+#ifdef LIBVNCSERVER_HAVE_POLL
+  struct pollfd pfd;
+#else
   fd_set fds;
+#endif
   int i = 0;
   int j;
   const char *obuf = buf;
@@ -296,6 +300,18 @@ WriteToRFBServer(rfbClient* client, const char *buf, unsigned int n)
 		errno == ENOENT ||
 #endif
 		errno == EAGAIN) {
+#ifdef LIBVNCSERVER_HAVE_POLL
+	  struct pollfd pfd;
+	  pfd.fd = client->sock;
+	  pfd.events = POLLOUT;
+
+	  if (poll(&pfd, 1, -1) <= 0) {
+	    if ((pfd.revents & POLLERR) || (pfd.revents & POLLHUP)) {
+	      rfbClientErr("poll\n");
+	      return FALSE;
+	    }
+	  }
+#else
 	  FD_ZERO(&fds);
 	  FD_SET(client->sock,&fds);
 
@@ -303,6 +319,7 @@ WriteToRFBServer(rfbClient* client, const char *buf, unsigned int n)
 	    rfbClientErr("select\n");
 	    return FALSE;
 	  }
+#endif
 	  j = 0;
 	} else {
 	  rfbClientErr("write\n");
@@ -316,37 +333,6 @@ WriteToRFBServer(rfbClient* client, const char *buf, unsigned int n)
     i += j;
   }
   return TRUE;
-}
-
-
-static rfbBool WaitForConnected(int socket, unsigned int secs)
-{
-  fd_set writefds;
-  fd_set exceptfds;
-  struct timeval timeout;
-
-  timeout.tv_sec=secs;
-  timeout.tv_usec=0;
-
-  FD_ZERO(&writefds);
-  FD_SET(socket, &writefds);
-  FD_ZERO(&exceptfds);
-  FD_SET(socket, &exceptfds);
-  if (select(socket+1, NULL, &writefds, &exceptfds, &timeout)==1) {
-#ifdef WIN32
-    if (FD_ISSET(socket, &exceptfds))
-      return FALSE;
-#else
-    int so_error;
-    socklen_t len = sizeof so_error;
-    getsockopt(socket, SOL_SOCKET, SO_ERROR, &so_error, &len);
-    if (so_error!=0)
-      return FALSE;
-#endif
-    return TRUE;
-  }
-
-  return FALSE;
 }
 
 
@@ -388,7 +374,7 @@ ConnectClientToTcpAddrWithTimeout(unsigned int host, int port, unsigned int time
 #ifdef WIN32
     errno=WSAGetLastError();
 #endif
-    if (!((errno == EWOULDBLOCK || errno == EINPROGRESS) && WaitForConnected(sock, timeout))) {
+    if (!((errno == EWOULDBLOCK || errno == EINPROGRESS) && sock_wait_for_connected(sock, timeout))) {
       rfbClientErr("ConnectToTcpAddr: connect\n");
       rfbCloseSocket(sock);
       return RFB_INVALID_SOCKET;
@@ -450,7 +436,7 @@ ConnectClientToTcpAddr6WithTimeout(const char *hostname, int port, unsigned int 
 #ifdef WIN32
           errno=WSAGetLastError();
 #endif
-          if ((errno == EWOULDBLOCK || errno == EINPROGRESS) && WaitForConnected(sock, timeout))
+          if ((errno == EWOULDBLOCK || errno == EINPROGRESS) && sock_wait_for_connected(sock, timeout))
             break;
           rfbCloseSocket(sock);
           sock = RFB_INVALID_SOCKET;
@@ -524,7 +510,7 @@ ConnectClientToUnixSockWithTimeout(const char *sockFile, unsigned int timeout)
     return RFB_INVALID_SOCKET;
 
   if (connect(sock, (struct sockaddr *)&addr, sizeof(addr.sun_family) + strlen(addr.sun_path)) < 0 &&
-      !(errno == EINPROGRESS && WaitForConnected(sock, timeout))) {
+      !(errno == EINPROGRESS && sock_wait_for_connected(sock, timeout))) {
     rfbClientErr("ConnectToUnixSock: connect\n");
     rfbCloseSocket(sock);
     return RFB_INVALID_SOCKET;
@@ -725,35 +711,13 @@ AcceptTcpConnection(rfbSocket listenSock)
 rfbBool
 SetNonBlocking(rfbSocket sock)
 {
-#ifdef WIN32
-  unsigned long block=1;
-  if(ioctlsocket(sock, FIONBIO, &block) == SOCKET_ERROR) {
-    errno=WSAGetLastError();
-#else
-  int flags = fcntl(sock, F_GETFL);
-  if(flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
-#endif
-    rfbClientErr("Setting socket to non-blocking failed: %s\n",strerror(errno));
-    return FALSE;
-  }
-  return TRUE;
+    return sock_set_nonblocking(sock, TRUE, rfbClientErr);
 }
 
 
 rfbBool SetBlocking(rfbSocket sock)
 {
-#ifdef WIN32
-  unsigned long block=0;
-  if(ioctlsocket(sock, FIONBIO, &block) == SOCKET_ERROR) {
-    errno=WSAGetLastError();
-#else
-  int flags = fcntl(sock, F_GETFL);
-  if(flags < 0 || fcntl(sock, F_SETFL, flags & ~O_NONBLOCK) < 0) {
-#endif
-    rfbClientErr("Setting socket to blocking failed: %s\n",strerror(errno));
-    return FALSE;
-  }
-  return TRUE;
+    return sock_set_nonblocking(sock, FALSE, rfbClientErr);
 }
 
 
@@ -900,14 +864,25 @@ PrintInHex(char *buf, int len)
 
 int WaitForMessage(rfbClient* client,unsigned int usecs)
 {
+#ifdef LIBVNCSERVER_HAVE_POLL
+  struct pollfd pfd;
+#else
   fd_set fds;
   struct timeval timeout;
+#endif
   int num;
 
   if (client->serverPort==-1)
     /* playing back vncrec file */
     return 1;
   
+#ifdef LIBVNCSERVER_HAVE_POLL
+  pfd.fd = client->sock;
+  pfd.events = POLLIN | POLLPRI;
+  num = poll(&pfd, 1, usecs/1000);
+  if ((pfd.revents & POLLERR) || (pfd.revents & POLLHUP))
+    return -1;
+#else
   timeout.tv_sec=(usecs/1000000);
   timeout.tv_usec=(usecs%1000000);
 
@@ -915,6 +890,7 @@ int WaitForMessage(rfbClient* client,unsigned int usecs)
   FD_SET(client->sock,&fds);
 
   num=select(client->sock+1, &fds, NULL, NULL, &timeout);
+#endif
   if(num<0) {
 #ifdef WIN32
     errno=WSAGetLastError();

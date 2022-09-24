@@ -302,26 +302,26 @@ void rfbShutdownSockets(rfbScreenInfoPtr rfbScreen)
     rfbScreen->socketState = RFB_SOCKET_SHUTDOWN;
 
     if(rfbScreen->inetdSock!=RFB_INVALID_SOCKET) {
-	rfbCloseSocket(rfbScreen->inetdSock);
 	FD_CLR(rfbScreen->inetdSock,&rfbScreen->allFds);
+	rfbCloseSocket(rfbScreen->inetdSock);
 	rfbScreen->inetdSock=RFB_INVALID_SOCKET;
     }
 
     if(rfbScreen->listenSock!=RFB_INVALID_SOCKET) {
-	rfbCloseSocket(rfbScreen->listenSock);
 	FD_CLR(rfbScreen->listenSock,&rfbScreen->allFds);
+	rfbCloseSocket(rfbScreen->listenSock);
 	rfbScreen->listenSock=RFB_INVALID_SOCKET;
     }
 
     if(rfbScreen->listen6Sock!=RFB_INVALID_SOCKET) {
-	rfbCloseSocket(rfbScreen->listen6Sock);
 	FD_CLR(rfbScreen->listen6Sock,&rfbScreen->allFds);
+	rfbCloseSocket(rfbScreen->listen6Sock);
 	rfbScreen->listen6Sock=RFB_INVALID_SOCKET;
     }
 
     if(rfbScreen->udpSock!=RFB_INVALID_SOCKET) {
-	rfbCloseSocket(rfbScreen->udpSock);
 	FD_CLR(rfbScreen->udpSock,&rfbScreen->allFds);
+	rfbCloseSocket(rfbScreen->udpSock);
 	rfbScreen->udpSock=RFB_INVALID_SOCKET;
     }
 
@@ -586,8 +586,9 @@ rfbCloseClient(rfbClientPtr cl)
 	  RFB_SHUTDOWN. Client socket closing will be done by the thread.
 	*/
 	write(cl->pipe_notify_client_thread[1], "\x00", 1);
-	/* And wait for it to finish. */
-	pthread_join(cl->client_thread, NULL);
+	/*
+	  No joining of threads here, this is fire and forget.
+	*/
 #endif
     } else
 #endif
@@ -1078,18 +1079,30 @@ rfbConnectToTcpAddr(char *host,
         if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == RFB_INVALID_SOCKET)
             continue;
 
-        if (connect(sock, p->ai_addr, p->ai_addrlen) < 0) {
-            rfbCloseSocket(sock);
-            continue;
-        }
-
-        break;
+	if (sock_set_nonblocking(sock, TRUE, rfbErr)) {
+	    if (connect(sock, p->ai_addr, p->ai_addrlen) == 0) {
+		break;
+	    } else {
+#ifdef WIN32
+		errno=WSAGetLastError();
+#endif
+		if ((errno == EWOULDBLOCK || errno == EINPROGRESS) && sock_wait_for_connected(sock, rfbMaxClientWait/1000))
+		    break;
+		rfbCloseSocket(sock);
+	    }
+	} else {
+	    rfbCloseSocket(sock);
+	}
     }
 
     /* all failed */
     if (p == NULL) {
         rfbLogPerror("rfbConnectToTcoAddr: failed to connect\n");
         sock = RFB_INVALID_SOCKET; /* set return value */
+    } else {
+	/* one succeeded, re-set to blocking */
+	if (!sock_set_nonblocking(sock, FALSE, rfbErr))
+	    rfbCloseSocket(sock);
     }
 
     /* all done with this structure now */
@@ -1115,10 +1128,27 @@ rfbConnectToTcpAddr(char *host,
 	return RFB_INVALID_SOCKET;
     }
 
-    if (connect(sock, (struct sockaddr *)&addr, (sizeof(addr))) < 0) {
+    if (!sock_set_nonblocking(sock, TRUE, rfbErr)) {
 	rfbCloseSocket(sock);
 	return RFB_INVALID_SOCKET;
     }
+
+    if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+#ifdef WIN32
+	errno=WSAGetLastError();
+#endif
+	if (!((errno == EWOULDBLOCK || errno == EINPROGRESS) && sock_wait_for_connected(sock, rfbMaxClientWait/1000))) {
+	    rfbErr("rfbConnectToTcpAddr: connect\n");
+	    rfbCloseSocket(sock);
+	    return RFB_INVALID_SOCKET;
+	}
+    }
+
+    if (!sock_set_nonblocking(sock, FALSE, rfbErr)) {
+	rfbCloseSocket(sock);
+	return RFB_INVALID_SOCKET;
+    }
+
 #endif
     return sock;
 }
@@ -1156,16 +1186,5 @@ rfbListenOnUDPPort(int port,
 rfbBool
 rfbSetNonBlocking(rfbSocket sock)
 {
-#ifdef WIN32
-  unsigned long block=1;
-  if(ioctlsocket(sock, FIONBIO, &block) == SOCKET_ERROR) {
-    errno=WSAGetLastError();
-#else
-  int flags = fcntl(sock, F_GETFL);
-  if(flags < 0 || fcntl(sock, F_SETFL, flags | O_NONBLOCK) < 0) {
-#endif
-    rfbLogPerror("Setting socket to non-blocking failed");
-    return FALSE;
-  }
-  return TRUE;
+    return sock_set_nonblocking(sock, TRUE, rfbLog);
 }
