@@ -1,0 +1,12 @@
+#!/bin/bash
+DIR="$(dirname "$(readlink -f "$0")")"
+cd "$DIR"
+. ./bash_lib
+
+sudo apt-get install -y mingw-w64
+sudo apt-get install -y cmake
+
+mkdir -p build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/Toolchain-cross-mingw32-linux.cmake ..
+cmake --build .
